@@ -30,4 +30,10 @@
 
 参考：[venv: Python 仮想環境管理](https://qiita.com/fiftystorm36/items/b2fd47cf32c7694adc2e)
 
+## 環境変数の用意
+`app.py`と同じディレクトリに`.env`という名前のファイル（拡張子なし）を用意し，中身を以下のように記述する．
+```
+OPENAI_API_KEY = 'ここに自分のOpenAI API Keyを記述'
+```
+
 ## 使用したパッケージ
