@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 import openai
-import json
 from dotenv import load_dotenv
 import os
 
@@ -45,7 +44,7 @@ def requst_gpt(text):
 
     openai.api_key = os.getenv('OPENAI_API_KEY')
     response = openai.ChatCompletion.create(
-        model='gpt-4',
+        model='gpt-3.5-turbo',
         messages=messages,
         temperature=0.2,
         n=1
@@ -86,6 +85,7 @@ def format_gpt_response(res):
     print(response)
 
     return response
+
 
 if __name__ == "__main__":
     app.run()
