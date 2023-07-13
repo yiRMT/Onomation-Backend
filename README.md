@@ -36,4 +36,17 @@
 OPENAI_API_KEY = 'ここに自分のOpenAI API Keyを記述'
 ```
 
+## FastAPIの起動方法
+
+FastAPIではuvicornというライブラリを使ってAPIを起動する．
+### 開発モード
+
+以下のコマンドをターミナルで実行すると起動できる．
+```
+uvicorn app:app --reload
+```
+最初の`app`はAPIが実装されているファイル名（今回は`app.py`）を指す．
+2つ目の`app`はFastAPIのオブジェクト（今回は`app = FastAPI()`なので`app`）を指す．
+最後の`--reload`はコードが変更される度にサーバを再起動させることを表す．
+
 ## 使用したパッケージ
