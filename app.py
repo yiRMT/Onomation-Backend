@@ -1,15 +1,15 @@
-from fastapi import FastAPI, Response, status
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import openai
 from dotenv import load_dotenv
 import os
+import json
 import firebase_admin
 from firebase_admin import credentials, firestore_async
 from datetime import datetime
 
 load_dotenv()
-
 
 app = FastAPI()
 
@@ -19,6 +19,7 @@ origins = [
     "https://onomation.yiwashita.com",
     "https://onomation.vercel.app"
 ]
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -39,6 +40,7 @@ class FirebaseTestModel(BaseModel):
     name: str
     age: int
 
+
 class PostModel(BaseModel):
     animation: GPTResponseModel
     comment: str
@@ -46,6 +48,7 @@ class PostModel(BaseModel):
     postDate: datetime
     uid: str
     displayName: str
+
 
 @app.get("/")
 async def hello_world():
@@ -56,7 +59,6 @@ async def hello_world():
 async def gpt(text: str) -> GPTResponseModel:
     response = requst_gpt(text)
     html_str, css_str, js_str = format_gpt_response(response)
-
     return GPTResponseModel(html=html_str, css=css_str, javascript=js_str)
 
 
@@ -67,16 +69,33 @@ def requst_gpt(text):
     example_output = '{ "html": "' + example_html + '", "css": "' + example_css + '", "javascript": "' + example_javascript + '" }'
 
     messages = [
-        {'role': 'system', 'content': 'You are a website developer. Create an animation using CSS and JavaScript to show the meaning of the Japanese onomatopoeia entered by the user. The output must be a JSON object with three keys: html, css, and javascript.'},
+        {'role': 'system', 'content': 'You are a website developer. Create an animation using CSS and JavaScript to show the meaning of the Japanese onomatopoeia entered by the user.'},
         {'role': 'user', 'content': 'ザーザー'},
         {'role': 'assistant', 'content': example_output},
         {'role': 'user', 'content': text}
+    ]
+
+    schema = {
+        'type': 'object',
+        'properties': {
+            'html': {'type': 'string'},
+            'css': {'type': 'string'},
+            'javascript': {'type': 'string'}
+        },
+        'required': ['html', 'css', 'javascript'],
+        'additionalProperties': False
+    }
+
+    functions = [
+        {'name': 'set_definition', 'parameters': schema},
     ]
 
     openai.api_key = os.getenv('OPENAI_API_KEY')
     response = openai.ChatCompletion.create(
         model='gpt-3.5-turbo',
         messages=messages,
+        functions=functions,
+        function_call={'name': 'set_definition'},
         temperature=0.2,
         n=1
     )
@@ -106,24 +125,25 @@ def format_gpt_response(res):
     }
     """
     # GPTのresponseからcontentのみを取得
-    content = res.choices[0].message.content
+    content = res.choices[0].message.function_call.arguments
     
-    #example_html = ('<!DOCTYPE html><html><head><title>ザーザー Animation</title><link rel="stylesheet" type="text/css"></head><body><div id="container"><div id="circle"></div></div></body></html>')
-    #example_css = ('#container { position: relative; width: 200px; height: 200px; overflow: hidden; } #circle { position: absolute; width: 100%; height: 100%; border-radius: 50%; background-color: blue; } ')
-    #example_javascript = ('const circle = document.getElementById("circle"); function animateCircle() { circle.style.transform = "scale(2)"; circle.style.transition = "transform 0.5s ease-in-out"; setTimeout(function() { circle.style.transform = "scale(1)"; circle.style.transition = "transform 0.5s ease-in-out"; }, 500); setTimeout(animateCircle, 1000); } animateCircle(); ')
-    #content = '{ "html": "' + example_html + '", "css": "' + example_css + '", "javascript": "' + example_javascript + '" }'
+    # example_html = ('<!DOCTYPE html><html><head><title>ザーザー Animation</title><link rel="stylesheet" type="text/css"></head><body><div id="container"><div id="circle"></div></div></body></html>')
+    # example_css = ('#container { position: relative; width: 200px; height: 200px; overflow: hidden; } #circle { position: absolute; width: 100%; height: 100%; border-radius: 50%; background-color: blue; } ')
+    # example_javascript = ('const circle = document.getElementById("circle"); function animateCircle() { circle.style.transform = "scale(2)"; circle.style.transition = "transform 0.5s ease-in-out"; setTimeout(function() { circle.style.transform = "scale(1)"; circle.style.transition = "transform 0.5s ease-in-out"; }, 500); setTimeout(animateCircle, 1000); } animateCircle(); ')
+    # content = '{ "html": "' + example_html + '", "css": "' + example_css + '", "javascript": "' + example_javascript + '" }'
     
     print(content)
 
-    # html, css, jsをパース
-    html_str = content.split('\"html\": \"')[1].split('\", \"css\": \"')[0]
-    css_str = content.split('\", \"css\": \"')[1].split('\", \"javascript\": \"')[0]
-    js_str = content.split('\", \"javascript\": \"')[1].split('\" }')[0]
+    # json形式の文字列を辞書型に変換
+    html_str = json.loads(content)['html']
+    css_str = json.loads(content)['css']
+    js_str = json.loads(content)['javascript']
 
     response = (html_str, css_str, js_str)
     print(response)
 
     return response
+
 
 # firebaseにデータを保存するデモ
 @app.post("/api/v1/firebase-test")
@@ -139,6 +159,7 @@ async def firebase_test(data: FirebaseTestModel):
 
     return data
 
+
 @app.post("/api/v1/posts")
 async def storePost(data: PostModel):
     # Firebaseに接続するためのコード
@@ -147,11 +168,11 @@ async def storePost(data: PostModel):
         firebase_admin.initialize_app(cred)
     db = firestore_async.client()
 
-
     # Firebaseにデータを保存するコード
     await db.collection("posts").add(data.model_dump())
 
     return data
+
 
 @app.get("/api/v1/posts")
 async def getAllPosts():
@@ -162,13 +183,14 @@ async def getAllPosts():
     db = firestore_async.client()
 
     docs = db.collection("posts").stream()
-    
+
     results = []
     async for doc in docs:
         print(f"{doc.id} => {doc.to_dict()}")
         results.append(doc.to_dict())
 
     return results
+
 
 @app.get("/api/v1/posts/{uid}")
 async def getPostsByUid(uid: str):
@@ -179,18 +201,13 @@ async def getPostsByUid(uid: str):
     db = firestore_async.client()
 
     docs = db.collection("posts").where("uid", "==", uid).stream()
-    
+
     results = []
     async for doc in docs:
         print(f"{doc.id} => {doc.to_dict()}")
         results.append(doc.to_dict())
 
     return results
-
-
-
-
-
 
 
 if __name__ == "__main__":
