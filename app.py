@@ -45,6 +45,7 @@ class PostModel(BaseModel):
     originalText: str
     postDate: datetime
     uid: str
+    displayName: str
 
 @app.get("/")
 async def hello_world():
