@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import openai
@@ -119,23 +119,17 @@ def format_gpt_response(res):
 
 # firebaseにデータを保存するデモ
 @app.post("/api/v1/firebase-test")
-async def firebase_test(data: FirebaseTestModel) -> None:
+async def firebase_test(data: FirebaseTestModel):
     # Firebaseに接続するためのコード
     if (not firebase_admin._apps):
         cred = credentials.Certificate("./serviceAccountKey.json")
         firebase_admin.initialize_app(cred)
     db = firestore_async.client()
-    
-    # リクエストボディのデータを辞書型に変換するコード
-    data_dict = {
-        "name": data.name,
-        "age": data.age,
-    }
 
     # Firebaseにデータを保存するコード
-    await db.collection("tests").add(data_dict)
+    await db.collection("tests").add(data.model_dump())
 
-    return
+    return data
 
 
 if __name__ == "__main__":
