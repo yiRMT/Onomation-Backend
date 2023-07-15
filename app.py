@@ -169,6 +169,24 @@ async def getAllPosts():
 
     return results
 
+@app.get("/api/v1/posts/{uid}")
+async def getPostsByUid(uid: str):
+    # Firebaseに接続するためのコード
+    if (not firebase_admin._apps):
+        cred = credentials.Certificate("./serviceAccountKey.json")
+        firebase_admin.initialize_app(cred)
+    db = firestore_async.client()
+
+    docs = db.collection("posts").where("uid", "==", uid).stream()
+    
+    results = []
+    async for doc in docs:
+        print(f"{doc.id} => {doc.to_dict()}")
+        results.append(doc.to_dict())
+
+    return results
+
+
 
 
 
