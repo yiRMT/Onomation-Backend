@@ -152,6 +152,25 @@ async def storePost(data: PostModel):
 
     return data
 
+@app.get("/api/v1/posts")
+async def getAllPosts():
+    # Firebaseに接続するためのコード
+    if (not firebase_admin._apps):
+        cred = credentials.Certificate("./serviceAccountKey.json")
+        firebase_admin.initialize_app(cred)
+    db = firestore_async.client()
+
+    docs = db.collection("posts").stream()
+    
+    results = []
+    async for doc in docs:
+        print(f"{doc.id} => {doc.to_dict()}")
+        results.append(doc.to_dict())
+
+    return results
+
+
+
 
 
 
