@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 import os
 import firebase_admin
 from firebase_admin import credentials, firestore_async
+from datetime import datetime
 
 load_dotenv()
 
@@ -38,6 +39,12 @@ class FirebaseTestModel(BaseModel):
     name: str
     age: int
 
+class PostModel(BaseModel):
+    animation: GPTResponseModel
+    comment: str
+    originalText: str
+    postDate: datetime
+    uid: str
 
 @app.get("/")
 async def hello_world():
@@ -130,6 +137,22 @@ async def firebase_test(data: FirebaseTestModel):
     await db.collection("tests").add(data.model_dump())
 
     return data
+
+@app.post("/api/v1/posts")
+async def storePost(data: PostModel):
+    # Firebaseに接続するためのコード
+    if (not firebase_admin._apps):
+        cred = credentials.Certificate("./serviceAccountKey.json")
+        firebase_admin.initialize_app(cred)
+    db = firestore_async.client()
+
+
+    # Firebaseにデータを保存するコード
+    await db.collection("posts").add(data.model_dump())
+
+    return data
+
+
 
 
 if __name__ == "__main__":
