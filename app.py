@@ -4,6 +4,8 @@ from pydantic import BaseModel
 import openai
 from dotenv import load_dotenv
 import os
+import firebase_admin
+from firebase_admin import credentials, firestore_async
 
 load_dotenv()
 
@@ -30,6 +32,11 @@ class GPTResponseModel(BaseModel):
     html: str
     css: str
     javascript: str
+
+
+class FirebaseTestModel(BaseModel):
+    name: str
+    age: int
 
 
 @app.get("/")
@@ -109,6 +116,26 @@ def format_gpt_response(res):
     print(response)
 
     return response
+
+# firebaseにデータを保存するデモ
+@app.post("/api/v1/firebase-test")
+async def firebase_test(data: FirebaseTestModel) -> None:
+    # Firebaseに接続するためのコード
+    if (not firebase_admin._apps):
+        cred = credentials.Certificate("./serviceAccountKey.json")
+        firebase_admin.initialize_app(cred)
+    db = firestore_async.client()
+    
+    # リクエストボディのデータを辞書型に変換するコード
+    data_dict = {
+        "name": data.name,
+        "age": data.age,
+    }
+
+    # Firebaseにデータを保存するコード
+    await db.collection("tests").add(data_dict)
+
+    return
 
 
 if __name__ == "__main__":
